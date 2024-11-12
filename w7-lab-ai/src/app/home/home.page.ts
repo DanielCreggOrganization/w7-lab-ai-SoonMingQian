@@ -11,7 +11,7 @@ import {
 } from '@ionic/angular/standalone';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { environment } from '../../environments/environment';
-
+import { GeminiAiService } from '../services/gemini-ai.service';
 @Component({
   selector: 'app-home',
   templateUrl: 'home.page.html',
@@ -31,6 +31,8 @@ export class HomePage {
   output = '';
   isLoading = false;
 
+  constructor(private geminiService: GeminiAiService) {}
+
   availableImages = [
     { url: 'assets/images/baked-goods-1.jpg', label: 'Baked Goods 1' },
     { url: 'assets/images/baked-goods-2.jpg', label: 'Baked Goods 2' },
@@ -48,33 +50,8 @@ export class HomePage {
     this.isLoading = true;
 
     try {
-      const response = await fetch(this.selectedImage);
-      const blob = await response.blob();
-      const base64data = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(blob);
-      });
-      const base64String = base64data.split(',')[1];
-
-      const genAI = new GoogleGenerativeAI(environment.apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const result = await model.generateContent({
-        contents: [{
-          role: 'user',
-          parts: [
-            {
-              inlineData: {
-                mimeType: 'image/jpeg',
-                data: base64String
-              }
-            },
-            { text: this.prompt }
-          ]
-        }]
-      });
-
-      this.output = result.response.text();
+      const base64Image = await this.geminiService.getImageAsBase64(this.selectedImage);
+      this.output = await this.geminiService.generateRecipe(base64Image, this.prompt);
       
     } catch (e) {
       this.output = `Error: ${e instanceof Error ? e.message : 'Something went wrong'}`;
